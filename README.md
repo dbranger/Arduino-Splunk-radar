@@ -30,13 +30,13 @@ Use of motion sensors with Arduino boards that transmit their data to Splunk for
 
 ## Index
 
-Create a destination index for the data (Through `indexes.conf` file in CLI or _Settings_ > _Indexes_ in WebUI)
+Create a destination index for the data (through `indexes.conf` file in CLI or _Settings_ > _Indexes_ in WebUI)
 
 ![Index](https://www.algosecure.fr/blog/img/2024-11-20_07-index.png)
 
 ## HTTP Event Collector
 
-Create an HTTP Event Collector input to receive data (Through `inputs.conf` file in CLI or _Settings_ > _Data Inputs_ in WebUI)
+Create an HTTP Event Collector input to receive data (through `inputs.conf` file in CLI or _Settings_ > _Data Inputs_ in WebUI)
 
 > [!IMPORTANT]
 > **Note the destination sourcetype as it will be configured later for time extraction**
@@ -86,7 +86,7 @@ Create a new project in Arduino IDE with the two files of this repo : `arduino_r
 
 Set the values in `arduino_secrets.h` for your environment 
 
-Adapt if necessary the following values in arduino_r4_radar.ino :
+Adapt if necessary the following values in `arduino_r4_radar.ino` :
 - sensorPin (_corresponding to the Arduino pin on which sensor is connected for OUT sensor pin_)
 - port (_for Splunk HEC port if you changed it, 8088 by default_)
 - setServer (_for NTP server_)
@@ -109,7 +109,24 @@ Congrats :+1: ! You can then Splunk it and use these data to calculate the speed
 
 > [!TIP]
 > **_Example of SPL request_** (_specific to my environment but in case this can help you to begin_) :
-> ![spl](https://www.algosecure.fr/blog/img/2024-11-20_29-spl9.png)
+
+```bash
+index=arduino
+| eval position=if(host="sensor163","L","R")
+| transaction maxevents=2 maxpause=2 mvlist=true keeporphans=false maxspan=1s
+| where mvindex(host,0)!=mvindex(host,1)
+| table _time,_raw,duration,host,position
+| eval distance=3.4, direction=if(mvindex(position,0)="L","out","in")
+| eval ms=distance/duration
+| eval kmh=round(ms*3.6,0)
+| where kmh<75 AND kmh>15
+| eval kmh=kmh-5
+| eval result=if(kmh-30<=0,0,kmh-30)
+| eval fine=if(result>0,135,0)
+| eval license_points=case(result<5,0,result>=5 AND result<20,1,result>=20 AND result<30,2,result>=30 AND result<40,3,result>=40 AND result<50,4,true(),0)
+| eval result=case(result>0 AND result<5,"Less than 5 km/h",result>=5 AND result<20,"Beetween 5 and 19 km/h",result>=20 AND result<30,"Beetween 20 and 29 km/h",result>=30 AND result<40,"Beetween 30 and 39 km/h",result>=40 AND result<50,"Beetween 40 and 49 km/h",true(),"OK")
+| table _time, direction, kmh, result, fine, license_points
+```
 
 
 
