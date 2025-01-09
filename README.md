@@ -62,7 +62,7 @@ TRANSFORMS-arduino-r4 = set-arduino-time
 > <ins>_trasnforms.conf_</ins> :
 ```bash
 [set-arduino-time]
-INGEST_EVAL = _time=strptime(mvindex(split(_raw," dist="),0),"%d-%m-%Y %H:%M:%S.%3Q")
+INGEST_EVAL = _time=strptime(mvindex(split(_raw," -"),0),"%d-%m-%Y %H:%M:%S.%3Q")
 ```
 
 > [!NOTE]
